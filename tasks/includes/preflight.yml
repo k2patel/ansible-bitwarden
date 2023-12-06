@@ -1,0 +1,55 @@
+---
+#- debug: var=bitwarden_domain_name[environment]
+#- debug: var=bitwarden_global_installation_id[environment]
+#- debug: var=bitwarden_global_installation_key[environment]
+#- debug: var=bitwarden_ssl_mode
+#- debug: var=bitwarden_nginx_cert_path
+#- debug: var=bitwarden_nginx_key_path
+#- debug: var=bitwarden_lets_encrypt_email
+#- meta: end_play
+
+# - name: check if masquerade et
+#   shell: firewall-cmd --list-all | grep masquerade | sed -e 's/^\s*//' -e '/^$/d'
+#   register: firewall_masq
+
+# - name: Fixing firewalld issue. # https://community.bitwarden.com/t/admin-container-cant-connect-to-sql/32372/6
+#   ansible.builtin.command: firewall-cmd --zone=public --add-masquerade --permanent
+#   become: true
+#   when: firewall_masq.stdout.find('yes') != -1
+#   register: firewall_change
+
+# - name: Reload firewalld. # https://community.bitwarden.com/t/admin-container-cant-connect-to-sql/32372/6
+#   ansible.builtin.command: firewall-cmd --reload
+#   become: true
+#   when: firewall_change is changed
+
+# Need to change firewall backend since it's an known issue https://github.com/bitwarden/server/issues/1546
+- name: Change firewall backend
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/firewalld/firewalld.conf
+    regexp: "^#?FirewallBackend"
+    line: "FirewallBackend=iptables"
+    state: present
+  register: firewall_backend
+
+- name: Restart services
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    state: restarted
+  loop:
+    - firewalld
+    - docker.service
+    - docker.socket
+  become: true
+  when: firewall_backend is changed
+
+- name: Install packages required.
+  ansible.builtin.package:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - python3-pexpect
+    - rsync
+  vars:
+    ansible_facts_update: true

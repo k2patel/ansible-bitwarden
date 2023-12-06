@@ -1,0 +1,36 @@
+---
+# tasks file for bitwarden
+- name: Check role requirements
+  ansible.builtin.include_tasks: includes/preflight.yml
+  tags: replication
+
+- name: Ensure user and environment
+  ansible.builtin.include_tasks: includes/prepare.yml
+  tags: replication
+
+- name: Check Bitwarden is already installed
+  ansible.builtin.stat:
+    path: "{{ bitwarden_install_dir }}"
+  register: output_dir
+
+- name: Check if config file exists
+  stat:
+    path: "{{ bitwarden_user_home }}/bwdata/config.yml"
+  register: config_stat
+
+- name: Include Bitwarden setup
+  ansible.builtin.include_tasks: includes/install.yml
+  # when: not output_dir.stat.exists or bitwarden_test_install_script
+  when: not config_stat.stat.exists
+
+- name: When configuration exists, instead of setup, run start.
+  ansible.builtin.include_tasks: includes/start.yml
+  when: config_stat.stat.exists
+
+- name: Configure Bitwarden
+  ansible.builtin.include_tasks: includes/configure.yml
+  when: not output_dir.stat.exists
+
+- name: Configure consul template
+  ansible.builtin.include_tasks: includes/consul.yml
+  when: consul_template[environment] is true

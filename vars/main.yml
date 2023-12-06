@@ -1,0 +1,61 @@
+---
+# vars file for bitwarden
+bitwarden_user: bitwarden
+bitwarden_user_home: /opt/bitwarden
+bitwarden_group: bitwarden
+bitwarden_install_dir: "{{ bitwarden_user_home }}/bwdata"
+bitwarden_output_dir: "{{ bitwarden_install_dir }}/docker"
+
+
+bitwarden_domain_name: 
+  dev: "{{ ansible_fqdn }}" 
+bitwarden_global_installation_id:
+  dev: asdfuqwe9yirashduifnajklsdrnf
+bitwarden_global_installation_key:
+  dev: adsf9iaousfaiosdfjaiopsdfja
+bitwarden_global_env:
+  dev:
+    globalSettings__mail__smtp__host: smtp.server.com
+    globalSettings__mail__smtp__port: 25
+    globalSettings__mail__smtp__ssl: false
+    adminSettings__admins: test@email.com
+
+# register_consul:
+#   dev: false
+# CONSUL_HTTP_TOKEN: "{{ lookup('env','CONSUL_HTTP_TOKEN') }}"
+
+consul_template:
+  dev: true
+
+bitwarden_install_inputs:
+  provided:
+    (?i).+Enter the domain name for your Bitwarden instance.+: "{{ bitwarden_domain_name[environment] }}"
+    (?i).+Do you want to use Let's Encrypt to generate a free SSL certificate?.+: "n"
+    (?i).+Enter the database name for your Bitwarden instance.+: "vault"
+    (?i).+Enter your installation id.+: "{{ bitwarden_global_installation_id[environment] }}"
+    (?i).+Enter your installation key.+: "{{ bitwarden_global_installation_key[environment] }}"
+    (?i).+Do you have a SSL certificate to use?.+: "y"
+    (?i).+Is this a trusted SSL certificate (requires ca.crt, see docs)?.+: "n"
+  lets_encrypt:
+    (?i).+Enter the domain name for your Bitwarden instance.+: "{{ bitwarden_domain_name[environment] }}"
+    (?i).+Do you want to use Let's Encrypt to generate a free SSL certificate?.+: "y"
+    (?i).+email address.+: "{{ bitwarden_lets_encrypt_email[environment] }}"
+    (?i).+database.+: "vault"
+    (?i).+Enter your installation id.+: "{{ bitwarden_global_installation_id[environment] }}"
+    (?i).+Enter your installation key.+: "{{ bitwarden_global_installation_key[environment] }}"
+  generate:
+    (?i).+Enter the domain name for your Bitwarden instance.+: "{{ bitwarden_domain_name[environment] }}"
+    (?i).+Do you want to use Let's Encrypt to generate a free SSL certificate?.+: "n"
+    (?i).+Enter the database name for your Bitwarden instance.+: "vault"
+    (?i).+Enter your installation id.+: "{{ bitwarden_global_installation_id[environment] }}"
+    (?i).+Enter your installation key.+: "{{ bitwarden_global_installation_key[environment] }}"
+    (?i).+Do you have a SSL certificate to use?.+: "n"
+    (?i).+Do you want to generate a self-signed SSL certificate?.+: "y"
+  disable:
+    (?i).+Enter the domain name for your Bitwarden instance.+: "{{ bitwarden_domain_name[environment] }}"
+    (?i).+Do you want to use Let's Encrypt to generate a free SSL certificate?.+: "n"
+    (?i).+Enter the database name for your Bitwarden instance.+: "vault"
+    (?i).+Enter your installation id.+: "{{ bitwarden_global_installation_id[environment] }}"
+    (?i).+Enter your installation key.+: "{{ bitwarden_global_installation_key[environment] }}"
+    (?i).+Do you have a SSL certificate to use?.+: "n"
+    (?i).+Do you want to generate a self-signed SSL certificate?.+: "n"

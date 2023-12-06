@@ -1,0 +1,56 @@
+---
+- name: Check required shared variables
+  ansible.builtin.assert:
+    that:
+      - bitwarden_domain_name[environment] | length > 0
+      - bitwarden_global_installation_id[environment] | length > 0
+      - bitwarden_global_installation_key[environment] | length > 0
+
+- name: Check supported ssl-mode
+  ansible.builtin.assert:
+    that:
+      - bitwarden_ssl_mode[environment] in ["provided", "lets_encrypt", "generate", "disable"]
+
+- name: Check required variables for SSL mode "provided"
+  when: bitwarden_ssl_mode[environment] == "provided"
+  ansible.builtin.assert:
+    that:
+      - bitwarden_nginx_cert_path[environment] | length > 0
+      - bitwarden_nginx_key_path[environment] | length > 0
+
+- name: Check required variables for SSL mode "lets_encrypt"
+  when: bitwarden_ssl_mode[environment] == "lets_encrypt"
+  ansible.builtin.assert:
+    that:
+      - bitwarden_lets_encrypt_email[environment] != ""
+
+- name: Copy Bitwarden nginx certificate in place
+  when: bitwarden_ssl_mode[environment] == "provided"
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    dest: "{{ bitwarden_install_dir }}/ssl/{{ bitwarden_domain_name[environment] }}/{{ item.dest }}"
+    remote_src: true
+    owner: "{{ bitwarden_user }}"
+    group: "{{ bitwarden_group }}"
+    mode: "0600"
+  loop:
+    - { src: "{{ bitwarden_nginx_cert_path[environment] }}", dest: 'certificate.crt' }
+    - { src: "{{ bitwarden_nginx_key_path[environment] }}", dest: 'private.key' }
+
+- name: Ensure custom values in Bitwarden configuration
+  ansible.builtin.lineinfile:
+    path: "{{ bitwarden_install_dir }}/config.yml"
+    regexp: "^{{ item.key }}:"
+    line: "{{ item.key }}: {{ item.value }}"
+  loop: "{{ bitwarden_setup_config[environment] | dict2items }}"
+  register: bw_config
+  notify: rebuild bitwarden
+
+- name: Ensure Bitwarden global environment
+  ansible.builtin.lineinfile:
+    path: "{{ bitwarden_install_dir }}/env/global.override.env"
+    regexp: "^{{ item.key }}="
+    line: "{{ item.key }}={{ item.value }}"
+  loop: "{{ bitwarden_global_env[environment] | dict2items }}"
+  no_log: true
+  notify: restart bitwarden

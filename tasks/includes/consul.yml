@@ -1,0 +1,35 @@
+---
+# - name: Generate service configuration for consul from template
+#   ansible.builtin.template:
+#     src: services.hcl.j2
+#     dest: /tmp/
+#   register: generated_services
+#   delegate_to: localhost
+
+# - name: register service with consul
+#   ansible.builtin.command: consul services register -config-string="{{ generated_services.stdout }}"
+#   environment:
+#     CONSUL_HTTP_TOKEN: "{{ CONSUL_HTTP_TOKEN }}"
+#   when: (CONSUL_HTTP_TOKEN is defined or CONSUL_HTTP_TOKEN != "")
+#   delegate_to: localhost
+  
+
+# - name: Generate and register services with Consul
+#   shell: |
+#     echo "{{ lookup('template', 'services.hcl.j2') }}" | consul services register -config-string=-
+#   args:
+#     executable: /bin/bash
+#   environment:
+#     CONSUL_HTTP_TOKEN: "{{ CONSUL_HTTP_TOKEN }}"
+#   when: (CONSUL_HTTP_TOKEN is defined or CONSUL_HTTP_TOKEN != "")
+#   delegate_to: localhost
+
+- name: Create consule template and check script for bitwarden
+  template:
+    src: "{{ consul_template_hash.src }}"
+    dest: "{{ consul_template_hash.dest }}"
+  loop:
+    - { src: 'bitwarden-check.sh.j2', dest: "/root/bitwarden-check.sh" }
+    - { src: 'services.hcl.j2', dest: "/root/bitwarden-service.hcl" }
+  loop_control:
+    loop_var: consul_template_hash

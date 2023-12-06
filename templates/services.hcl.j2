@@ -1,0 +1,25 @@
+{
+  "id": "Bitwarden Service",
+  "name": "bitwarden",
+  "port": 443,
+  "tags": [
+    "web",
+    "api"
+  ],
+  "checks": [
+    {
+      "name": "bitwarden http check",
+      "http": "https://{{ ansible_fqdn }}:443",
+      "interval": "30s",
+      "timeout": "5s"
+    },
+    {
+      "name": "bitwarden check script",
+      "args": [
+        "/opt/consul/checks/bitwarden_check.sh"
+      ],
+      "interval": "30s",
+      "timeout": "5s"
+    }
+  ]
+}

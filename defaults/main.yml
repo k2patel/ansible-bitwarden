@@ -1,0 +1,87 @@
+---
+# defaults file for bitwarden
+# @var bitwarden_domain_name:description: Github tagged version of Bitwarden install script to use.
+# Note that this has a different version in the script than the tag.
+bitwarden_script_version:
+   dev: "v2023.5.0"
+
+# @var bitwarden_domain_name:description: Domain name which used for hole bitwarden setup
+bitwarden_domain_name:
+   dev: "{{ ansible_fqdn }}" 
+
+# @var bitwarden_ssl_provider:description:>
+# Provides the SSL mode to use when setting up the installation
+# Options: provided, generate, lets_encrypt, disable
+# @end
+bitwarden_ssl_mode:
+   dev: provided
+
+# @var bitwarden_nginx_cert_path:description:>
+# Path of the certificate file used for the Nginx container (required if `bitwarden_ssl_mode == "provided"`).
+# The user of the role is responsible for providing a valid certificate file.
+# File is copied from the provided location to Bitwardens user home in order to garantue the correct mapping inside the container.
+bitwarden_nginx_cert_path:
+   dev: /etc/pki/tls/certs/host.crt
+
+# @var bitwarden_nginx_key_path:description:>
+# Path of the key file used for the Nginx container (required if `bitwarden_ssl_mode == "provided"`).
+# The user of the role is responsible for providing a valid key file.
+# File is copied from the provided location to Bitwardens user home in order to garantue the correct mapping inside the container.
+bitwarden_nginx_key_path:
+   dev: /etc/pki/tls/private/host.key
+
+# @var bitwarden_nginx_ca_path:description:>
+# Path of the CA file used for the Nginx container (required if `bitwarden_ssl_mode == "provided"`).
+# The user of the role is responsible for providing a valid CA file.
+# File is copied from the provided location to Bitwardens user home in order to garantue the correct mapping inside the container.
+bitwarden_nginx_ca_path:
+   dev: /etc/pki/tls/certs/ca.crt
+
+# @var bitwarden_lets_encrpyt_email:description: Lets Encrypt email account if bitwarden_ssl_mode set to "lets_encrypt"
+bitwarden_lets_encrypt_email:
+   dev: 
+
+# @var bitwarden_global_env:description:>
+# Map of global Bitwarden environment variables. Each entire is mapped to the global.override.env.
+# See https://bitwarden.com/help/article/environment-variables/
+# @end
+# @var bitwarden_global_env:example: >
+# bitwarden_global_env:
+#   globalSettings__mail__smtp__host: localhost
+#   globalSettings__mail__smtp__port: 25
+# @end
+bitwarden_global_env:
+   dev:
+      globalSettings__mail__smtp__host: localhost
+      globalSettings__mail__smtp__port: 25
+      globalSettings__mail__smtp__ssl: false
+
+# @var bitwarden_setup_config:description:>
+# Map of Bitwarden setup configuration values to override.
+# Use this to change values in the generated config.yml file from Bitwarden.
+# @end
+# @var bitwarden_setup_config:example: >
+# bitwarden_setup_config:
+#   database_docker_volume: true
+# @end
+bitwarden_setup_config:
+   dev: {}
+
+# @var bitwarden_test_install_script:description:>
+# A flag to disable downloading the `bitwarden.sh` script. Used in cases where the Let's Encrypt ssl_mode needs to be
+# tested without fear of hitting the Let's Encrypt rate limit. Or to test changes to the `bitwarden.sh` or `run.sh`
+# scripts. Hopefully this flag can be added to the `bitwarden.sh` script in the future instead of being used here.
+# @end
+bitwarden_test_install_script:
+   dev: false
+
+# bitwarden_global_installation_id: efdg8ya8yadsfog8-asdfasdahsua876
+# bitwarden_global_installation_key: afahuiIHIUnga67afdsfa
+
+bitwarden_stop:
+   dev: false
+
+bitwarden_consul:
+   dev:
+      disk_threshold: 90
+      cpu_threshold: 90

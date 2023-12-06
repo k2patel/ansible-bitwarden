@@ -1,0 +1,51 @@
+---
+- name: Ensure bitwarden group
+  ansible.builtin.group:
+    name: "{{ bitwarden_group }}"
+    state: present
+
+- name: Ensure bitwarden user
+  ansible.builtin.user:
+    name: "{{ bitwarden_user }}"
+    group: "{{ bitwarden_group }}"
+    groups:
+      - docker
+    system: true
+    home: "{{ bitwarden_user_home }}"
+  register: user
+
+- name: Download bitwarden.sh for {{ bitwarden_script_version[environment] }}
+  when: not bitwarden_test_install_script[environment]
+  ansible.builtin.get_url:
+    url: https://raw.githubusercontent.com/bitwarden/self-host/{{ bitwarden_script_version[environment] }}/bitwarden.sh
+    dest: "{{ bitwarden_user_home }}/bitwarden.sh"
+    mode: "0700"
+    owner: "{{ bitwarden_user }}"
+    group: "{{ bitwarden_group }}"
+  notify: update bitwarden # Notify update when Bitwarden install has changed
+
+- name: Download bitwarden.sh for {{ bitwarden_script_version[environment] }}
+  when: bitwarden_test_install_script[environment]
+  ansible.builtin.copy:
+    src: "{{ role_path }}/files/bitwarden.sh" 
+    dest: "{{ bitwarden_user_home }}/bitwarden.sh"
+    mode: "0700"
+    owner: "{{ bitwarden_user }}"
+    group: "{{ bitwarden_group }}"
+  notify: update bitwarden # Notify update when Bitwarden install has changed
+
+- name: Create /root/bin folder if, doesn't exists.
+  ansible.builtin.file:
+    path: "/root/bin"
+    state: directory
+    owner: "root"
+    group: "root"
+    mode: '0750'
+
+- name: copy wrapper script for consul based management
+  ansible.builtin.copy:
+    src: "{{ role_path }}/files/bitwarden_service"
+    dest: "/root/bin/bitwarden_service"
+    mode: '0750'
+    owner: "root"
+    group: "root"

@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+
+# Function to list all IP addresses of the instance
+list_instance_ips() {
+    # Get a list of all network interfaces (excluding the loopback interface)
+    for INTERFACE in $(ip link show | awk -F: '$0 !~ "lo|vir|docker|br|wl|^[^0-9]"{print $2;getline}'); do
+        # Get the IP address of the current machine for the interface
+        CURRENT_IP=$(ip addr show dev $INTERFACE | awk '/inet /{gsub("/.*", ""); print $2}')
+        echo "$CURRENT_IP"
+    done
+}
+
+# Function to compare all IP addresses to Consul IPs
+compare_ips_to_consul() {
+    local consul_ips="$1"
+    local instance_ips="$2"
+
+    for ip in $instance_ips; do
+        if [[ $consul_ips == *$ip* ]]; then
+            return 0  # IP match found
+        fi
+    done
+
+    return 1  # No IP match found
+}
+
+# Check if the correct number of arguments is provided
+if [ $# -ne 1 ]; then
+    echo "Usage: $0 <start|stop|status|ip>"
+    echo -e "\t start:\t Start the service if there is no healthy instance of the service in Consul"
+    echo -e "\t stop:\t Stop the service"
+    echo -e "\t status: Show the status of the service on this node"
+    echo -e "\t ip:\t Show the IP addresses of active node"
+    exit 1
+fi
+
+# Action to perform (start or stop)
+ACTION="$1"
+
+# Replace name of your service
+SERVICE_NAME="bitwarden"
+
+# Replace name of your user
+SERVICE_USER="bitwarden"
+
+
+# Query Consul for DNS records of your service
+CONSUL_IPS=$(dig +short $SERVICE_NAME.service.consul)
+
+# List all IP addresses of the instance
+INSTANCE_IPS=$(list_instance_ips)
+
+# Check if Consul returned no IP addresses for the service
+if [[ "$ACTION" == "status" ]]; then
+    docker ps
+    exit 0
+fi
+if [[ "$ACTION" == "ip" ]]; then
+    echo $CONSUL_IPS
+    exit 0
+fi
+if [[ "$ACTION" == "start" || "$ACTION" == "stop" ]]; then
+    if [ -z "$CONSUL_IPS" ] && [ "$ACTION" == "start" ]; then
+        echo "No healthy instances of $SERVICE_NAME found in Consul. Starting the service..."
+        su - $SERVICE_USER -c "/opt/bitwarden/bitwarden.sh start"
+    elif [ -n "$CONSUL_IPS" ] && [ "$ACTION" == "stop" ]; then
+        # Compare all instance IP addresses to Consul IPs
+        if compare_ips_to_consul "$CONSUL_IPS" "$INSTANCE_IPS"; then
+            echo "Service is Active on this node. Stopping the service..."
+            su - $SERVICE_USER -c "/opt/bitwarden/bitwarden.sh stop"
+        elif ! compare_ips_to_consul "$CONSUL_IPS" "$INSTANCE_IPS"; then
+            echo "Service is not Active on this node. Stopping the service..."
+            su - $SERVICE_USER -c "/opt/bitwarden/bitwarden.sh stop"
+        else
+            echo "No matching IP addresses found in Consul. No action taken."
+        fi
+    else
+        echo "Healty instance of Consul located at $CONSUL_IPS, No action taken."
+    fi
+else
+    echo "Invalid action: $ACTION"
+fi

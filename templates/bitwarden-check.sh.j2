@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+
+COMPOSE_FILE="{{ bitwarden_install_dir }}/docker/docker-compose.yml"
+EXIT_CODE=0
+FAILED_CONTAINERS=""
+DISK_PATH="{{ bitwarden_user_home }}"  # Replace with the actual path to check
+DISK_THRESHOLD="{{ bitwarden_consul[environment].disk_threshold }}"  # Set the disk space threshold percentage
+CPU_THRESHOLD="{{ bitwarden_consul[environment].cpu_threshold }}"  # Set the CPU threshold percentage
+
+{% raw %}
+# Function to check if a Docker container is healthy and running
+check_container() {
+    local container_name="$1"
+    local status=$(docker inspect --format='{{.State.Health.Status}}' "bitwarden-$container_name")
+
+    if [ "$status" != "healthy" ]; then
+        echo "$container_name is not healthy. Health Status: $status"
+        EXIT_CODE=2
+        FAILED_CONTAINERS+=" $container_name"
+    fi
+
+    local container_state=$(docker inspect --format='{{.State.Status}}' "bitwarden-$container_name")
+
+    if [ "$container_state" != "running" ]; then
+        echo "$container_name is not running. Container Status: $container_state"
+        EXIT_CODE=2
+        FAILED_CONTAINERS+=" $container_name"
+    fi
+}
+
+# Function to check disk space usage percentage
+check_disk_space() {
+    local disk_usage=$(df -h --output=pcent "$DISK_PATH" | tail -n 1 | tr -d '%')
+
+    if [ "$disk_usage" -gt "$DISK_THRESHOLD" ]; then
+        echo "Disk space usage for $DISK_PATH exceeds the threshold. Usage: $disk_usage%"
+        EXIT_CODE=2
+    fi
+}
+
+# Function to check CPU utilization
+check_cpu_utilization() {
+    local cpu_usage=$(top -bn1 | awk 'NR==3{print $2}' | tr -d '%')
+    local result=$(awk -v num1="$cpu_usage" -v num2="$CPU_THRESHOLD" 'BEGIN {if (num1 > num2) print 1; else if (num1 < num2) print -1; else print 0}')
+    if [ "$result" -eq 1 ]; then
+        echo "CPU utilization exceeds the threshold. Usage: $cpu_usage%"
+        EXIT_CODE=2
+    fi
+}
+
+# Function to check all containers in the Docker Compose file
+check_all_containers() {
+    local services=$(docker-compose -f "$COMPOSE_FILE" config --services)
+
+    for service in $services; do
+        check_container "$service"
+    done
+
+    check_disk_space
+    check_cpu_utilization
+
+    if [ "$EXIT_CODE" -eq 0 ]; then
+        echo "All containers, Bitwarden service, disk space, and CPU are healthy and running."
+    else
+        echo "At least one container, Bitwarden service, disk space, or CPU is not healthy or not running."
+        echo "Failed Components: $FAILED_CONTAINERS"
+    fi
+}
+
+# Main execution
+check_all_containers
+exit "$EXIT_CODE"
+{% endraw %}

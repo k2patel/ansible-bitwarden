@@ -1,0 +1,12 @@
+---
+- name: Synchronize data using rsync over SSH
+  ansible.builtin.command: "rsync -avz --exclude 'config.yml' -e 'ssh -o StrictHostKeyChecking=no -l {{ bitwarden_user }}' {{ source_ip }}:{{ bitwarden_user_home }}/bwdata {{ bitwarden_user_home }}"
+  become: true
+  become_user: "{{ bitwarden_user }}"
+
+- name: Create cron job for rsync
+  ansible.builtin.cron:
+    name: Rsync Job
+    minute: "*/5"
+    job: "rsync -avz --exclude 'config.yml' {{ bitwarden_user }}@{{ source_ip }}:{{ bitwarden_user_home }}/bwdata {{ bitwarden_user_home }}"
+    user: "{{ bitwarden_user }}"

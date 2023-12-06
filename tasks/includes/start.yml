@@ -1,0 +1,64 @@
+---
+- name: Create folder if, doesn't exists.
+  ansible.builtin.file:
+    path: "{{ bitwarden_install_dir }}/ssl/{{ ansible_fqdn }}"
+    state: directory
+    owner: "{{ bitwarden_user }}"
+    group: "{{ bitwarden_group }}"
+    mode: '0755'
+
+- name: Copy SSL pvt. Key
+  ansible.builtin.copy:
+    src: /etc/pki/tls/private/host.key
+    dest: "{{ bitwarden_install_dir }}/ssl/{{ ansible_fqdn }}/private.key"
+    mode: '0600'
+    owner: "{{ bitwarden_user }}"
+    group: "{{ bitwarden_group }}"
+    remote_src: true
+
+- name: Create cert. bundle
+  ansible.builtin.command: "paste --delimiter=\\n --serial {{ bitwarden_nginx_cert_path[environment] }} {{ bitwarden_nginx_ca_path[environment] }}"
+  register: private_cert
+
+- name: copy bundle to file
+  ansible.builtin.copy:
+    content: "{{ private_cert.stdout }}"
+    dest: "{{ bitwarden_install_dir }}/ssl/{{ ansible_fqdn }}/certificate.crt"
+    mode: '0600'
+    owner: "{{ bitwarden_user }}"
+    group: "{{ bitwarden_group }}"
+
+- name: Change the file configuration URL
+  ansible.builtin.lineinfile:
+    path: "{{ bitwarden_user_home }}/bwdata/config.yml"
+    regexp: '^url: '
+    line: "url: https://{{ ansible_fqdn }}"
+
+- name: Change the file configuration certificate
+  ansible.builtin.lineinfile:
+    path: "{{ bitwarden_user_home }}/bwdata/config.yml"
+    regexp: '^ssl_certificate_path: '
+    line: "ssl_certificate_path: /etc/ssl/{{ ansible_fqdn }}/certificate.crt"
+
+- name: Change the file configuration privatekey
+  ansible.builtin.lineinfile:
+    path: "{{ bitwarden_user_home }}/bwdata/config.yml"
+    regexp: '^ssl_key_path: '
+    line: "ssl_key_path: /etc/ssl/{{ ansible_fqdn }}/private.key"
+
+- name: Update Bitwarden configuration
+  ansible.builtin.command: './bitwarden.sh updateconf'
+  register: bw_result_updateconf
+  args:
+    chdir: "{{ bitwarden_user_home }}"
+  become_user: "{{ bitwarden_user }}"
+  become: true
+
+- name: Start Bitwarden
+  ansible.builtin.command: './bitwarden.sh start'
+  register: bw_result_start
+  args:
+    chdir: "{{ bitwarden_user_home }}"
+  become_user: "{{ bitwarden_user }}"
+  become: true
+  when: bitwarden_stop[environment] is false

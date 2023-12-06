@@ -1,0 +1,45 @@
+---
+# handlers file for bitwarden
+# Handlers always run in the order they are defined, not in the order listed in the notify-statement.
+- name: Rebuild bitwarden
+  ansible.builtin.command: ./bitwarden.sh rebuild
+  args:
+    chdir: "{{ bitwarden_user_home }}"
+  become_user: "{{ bitwarden_user }}"
+  become: true
+  when: bitwarden_stop[environment] is false
+
+- name: Restart bitwarden
+  ansible.builtin.command: ./bitwarden.sh restart
+  args:
+    chdir: "{{ bitwarden_user_home }}"
+  become_user: "{{ bitwarden_user }}"
+  become: true
+  when: bitwarden_stop[environment] is false
+
+# Update should run at last when containers are running
+- name: Update bitwarden
+  ansible.builtin.command: ./bitwarden.sh update
+  args:
+    chdir: "{{ bitwarden_user_home }}"
+  become_user: "{{ bitwarden_user }}"
+  become: true
+  when: bitwarden_stop[environment] is false
+
+# Make sure service are not running when variable bitwarden_stop is true
+- name: Ensure services are stopped.
+  ansible.builtin.command: ./bitwarden.sh stop
+  args:
+    chdir: "{{ bitwarden_user_home }}"
+  become_user: "{{ bitwarden_user }}"
+  become: true
+  when: bitwarden_stop[environment] is true
+
+# Firewall reastart
+- name: Restart firewalld
+  ansible.builtin.service:
+    name: firewalld
+    state: restarted
+  become: true
+  listen: "Restart firewalld"
+  when: firewall_backend.changed
